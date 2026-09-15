@@ -1,5 +1,10 @@
 # high-speed-scanner
 
+[![License](https://img.shields.io/github/license/caixibei/high-speed-scanner)](https://github.com/caixibei/high-speed-scanner/blob/main/LICENSE)
+[![Stars](https://img.shields.io/github/stars/caixibei/high-speed-scanner?logo=github&label=stars)](https://github.com/caixibei/high-speed-scanner/stargazers)
+[![Last Commit](https://img.shields.io/github/last-commit/caixibei/high-speed-scanner/main?logo=github)](https://github.com/caixibei/high-speed-scanner/commits/main)
+[![Node](https://img.shields.io/badge/node-%3E%3D10-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org)
+
 高拍仪 WebSocket 模拟服务 — 用于前端无设备时的联调开发，模拟快递面单底照的实时预览与拍照捕获。
 
 ## 技术栈
