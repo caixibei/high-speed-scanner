@@ -9,7 +9,7 @@
 
 ## 技术栈
 
-- Node.js（纯 JS，无第三方图片库）
+- Node.js ≥ 10（纯 JS，无第三方图片库）
 - WebSocket（ws）
 - 内置 PNG 编码器 + 快递面单渲染管线
 
@@ -43,6 +43,30 @@ node high-speed-scanner.js
 | `SetCameraImageInfo` | 配置图像算法（cropType / imageType） |
 | `CloseCamera` | 关闭设备，停止预览 |
 | `GetOcrSupportInfo` | 返回 OCR 支持语言列表 |
+| `ExternalButton` | 外部按钮占位指令，直接返回成功 |
+
+## 消息格式
+
+请求与响应均为 JSON。请求携带 `func`（指令名）和 `reqId`（请求 ID，响应原样返回）：
+
+```json
+{ "func": "GetCameraInfo", "reqId": 1 }
+```
+
+预览帧通过 `GetCameraVideoBuff` 定时推送，每帧带 `mime: image/png` 的 `imgBase64Str` 字段：
+
+```json
+{
+  "func": "GetCameraVideoBuff",
+  "reqId": 1,
+  "result": 0,
+  "devNum": 0,
+  "mime": "image/png",
+  "imgBase64Str": "<PNG base64>",
+  "width": 640,
+  "height": 480
+}
+```
 
 ## 面单底照渲染管线
 
@@ -60,7 +84,7 @@ node high-speed-scanner.js
 | 特性 | 预览帧 | 拍照帧 |
 |------|--------|--------|
 | 分辨率 | 640×480 | 1280×960 |
-| 纸张姿态 | ±3px 随机抖动 | 固定 |
+| 纸张姿态 | ±2° 旋转 + 逐帧抖动 | 固定 |
 | 噪点强度 | 中（7） | 低（3） |
 | 模板切换 | 每 4 帧轮换 | 固定 |
 
