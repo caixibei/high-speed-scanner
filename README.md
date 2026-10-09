@@ -46,15 +46,23 @@ node high-speed-scanner.js
 
 以下步骤整理自业务系统前端的实际接入方式，接入方按自身工程习惯落地即可。
 
-### 1. 配置连接地址
+### 1. 配置连接地址（.env 环境配置）
 
-前端工程通过环境变量读取服务地址（变量名由前端工程自行约定，下文以 `VUE_APP_HIGH_SPEED_SCANNER_URL` 为例），在前端工程根目录的 `.env.*` 中配置：
+前端工程通过环境变量读取服务地址（变量名由前端工程自行约定，下文以 `VUE_APP_HIGH_SPEED_SCANNER_URL` 为例），在前端工程根目录的 `.env.*` 文件中配置：
 
 ```bash
+# .env.development —— 本地联调，指向本机模拟服务
+VUE_APP_HIGH_SPEED_SCANNER_URL=ws://127.0.0.1:8082
+
+# .env.production —— 生产环境（服务装在每台使用高拍仪的电脑上，通常仍是本机地址）
 VUE_APP_HIGH_SPEED_SCANNER_URL=ws://127.0.0.1:8082
 ```
 
-本地联调使用本机 `8082` 端口；修改 `.env` 后需重启前端服务才生效。
+配置注意事项：
+
+- **变量名前缀**：Vue CLI 工程必须以 `VUE_APP_` 开头，变量才会注入客户端代码；Vite 工程以 `VITE_` 开头，代码中用 `import.meta.env.VITE_HIGH_SPEED_SCANNER_URL` 读取。
+- **127.0.0.1 指浏览器所在电脑**：WebSocket 由用户的浏览器直接发起连接，`127.0.0.1` 是「打开页面的那台电脑」。因此本服务需要安装/启动在每台使用高拍仪的电脑上；若多台电脑共用一台高拍仪，把地址改成高拍仪所在机器的内网 IP（如 `ws://192.168.1.50:8082`），并在该机器上放行 `8082` 端口。
+- **修改生效时机**：`.env` 变量在启动/构建时注入，修改后必须重启前端 dev server（或重新 build）才生效，热更新不会重读。
 
 ### 2. 使用业务系统已有的高拍仪弹窗组件（推荐）
 
@@ -159,7 +167,8 @@ export default {
   props: {
     visible: { type: Boolean, default: false },
     limit: { type: Number, default: 1 },                               // 最多可选张数
-    wsUrl: { type: String, default: 'ws://127.0.0.1:8082' }            // 模拟服务地址，可换成本地组件
+    // 服务地址：默认读取 .env 中的 VUE_APP_HIGH_SPEED_SCANNER_URL（见第 1 节），未配置时兜底本机模拟服务
+    wsUrl: { type: String, default: process.env.VUE_APP_HIGH_SPEED_SCANNER_URL || 'ws://127.0.0.1:8082' }
   },
   data() {
     return {
@@ -323,7 +332,55 @@ export default {
 </style>
 ```
 
+#### Vue2 组件的 env 环境配置
+
+组件默认从 `process.env.VUE_APP_HIGH_SPEED_SCANNER_URL` 读取服务地址，接入前需在前端工程根目录新增/确认 `.env` 文件（Vue CLI 约定：`.env.development` 对应 `npm run serve`，`.env.production` 对应 `npm run build`，`.env` 为所有环境共用的基础文件）：
+
+```bash
+# ===== .env.development（本地联调）=====
+# 高拍仪模拟服务地址；多台电脑共用一台高拍仪时，改成高拍仪所在机器的内网 IP
+VUE_APP_HIGH_SPEED_SCANNER_URL=ws://127.0.0.1:8082
+
+# ===== .env.production（生产构建）=====
+# 服务安装/启动在每台使用高拍仪的电脑上，因此通常仍是本机地址
+VUE_APP_HIGH_SPEED_SCANNER_URL=ws://127.0.0.1:8082
+```
+
+配套注意：
+
+- 变量必须以 `VUE_APP_` 开头才会被 Vue CLI 注入客户端代码；新增/修改变量后必须**重启 dev server 或重新 build** 才生效，热更新不重读。
+- 组件不传 `ws-url` 时自动取环境变量；特殊场景（如同一页面接多台高拍仪）可显式覆盖：`<high-speed-camera-dialog :ws-url="customUrl" ... />`。
+- 部署在 HTTPS 站点时浏览器会阻断 `ws://` 明文连接，生产环境需用 `wss://`（本模拟服务未配 TLS，内网使用时可先保持 HTTP 访问，或在前置 Nginx 上配置 TLS 代理到 8082）。
+
 接入方使用方式：注册组件后，用一个按钮控制 `visible`，监听 `confirm` 事件拿到 File 列表后接自己的上传接口即可。
+
+```vue
+<template>
+  <div>
+    <el-button @click="cameraVisible = true">高拍仪拍照</el-button>
+    <high-speed-camera-dialog :visible.sync="cameraVisible" :limit="1" @confirm="onCameraConfirm" />
+  </div>
+</template>
+
+<script>
+import HighSpeedCameraDialog from '@/components/HighSpeedCameraDialog.vue' // 按工程实际路径调整
+export default {
+  components: { HighSpeedCameraDialog },
+  data() {
+    return { cameraVisible: false }
+  },
+  methods: {
+    // 拿到 File 列表后接自己的上传接口；此处以 FormData 上传为例
+    async onCameraConfirm(files) {
+      const formData = new FormData()
+      files.forEach(f => formData.append('files', f))
+      // await this.$axios.post('/your/upload/api', formData)
+      console.log('待上传文件', files)
+    }
+  }
+}
+</script>
+```
 
 ## 协议指令一览
 
